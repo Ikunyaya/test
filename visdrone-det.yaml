@@ -1,0 +1,57 @@
+# VisDrone2019-DET dataset https://github.com/VisDrone/VisDrone-Dataset by Tianjin University
+
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path: D:/object_detection/EDNet-main/datasets/Visdrone2019 # Please change to your proper dataset root dir
+train: D:/object_detection/EDNet-main/datasets/Visdrone2019/VisDrone2019-DET-train/images # train images (relative to 'path')  6471 images
+val: D:/object_detection/EDNet-main/datasets/Visdrone2019/VisDrone2019-DET-val/images # val images (relative to 'path')  548 images
+test: D:/object_detection/EDNet-main/datasets/Visdrone2019/VisDrone2019-DET-test-dev/images # test images (optional)  1610 images
+
+# Classes
+names:
+  0: pedestrian
+  1: people
+  2: bicycle
+  3: car
+  4: van
+  5: truck
+  6: tricycle
+  7: awning-tricycle
+  8: bus
+  9: motor
+
+## 增加数据增强模块（追加到文件末尾）
+#augments:
+#  hsv_h: 0.3
+#  hsv_s: 0.7
+#  hsv_v: 0.4
+#  degrees: 45.0  # 无人机视角需要更大旋转
+#  translate: 0.2
+#  scale: 0.75     # 增强小目标识别
+#  mosaic: 0.25    # 降低马赛克概率
+#  mixup: 0.15     # 新增mixup增强
+#  copy_paste: 0.2 # 小目标复制粘贴增强
+#
+## 修改类别权重（解决样本不平衡）
+#cls_weights: [1.0, 0.9, 2.5, 0.6, 1.2, 3.0, 2.8, 3.5, 4.0, 1.5]  # 对应0-9类
+#
+## 调整锚点配置（适配无人机小目标）
+#anchors:
+#  - [3,4,  5,8,  6,12]    # P3/8
+#  - [9,16, 12,24, 19,32]  # P4/16
+#  - [24,48, 38,64, 48,96] # P5/32
+
+
+# 修改锚点尺寸（更适配小目标）
+anchors:
+  - [2,3, 4,5, 5,7]     # P3/8 (XSmall)
+  - [3,4, 5,8, 6,12]    # P4/16
+  - [9,16, 12,24, 19,32] # P5/32
+
+# 调整类别权重（更匹配VisDrone分布）
+cls_weights: [1.2, 1.0, 3.0, 0.8, 1.5, 3.5, 3.2, 4.0, 4.5, 2.0]
+
+# 增强小目标处理
+augments:
+  small_object_scale: 1.5  # 小目标放大系数
+  small_object_area: 512    # 小目标面积阈值(32x16)
+  min_objects: 10           # 每图最少目标数

@@ -1,0 +1,39 @@
+# 忽略数据集目录
+/datasets/
+/coreml_models/
+/pretrained/
+/runs/
+
+# 忽略Python缓存文件
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# 忽略IDE配置
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 忽略安装的包和虚拟环境
+venv/
+env/
+*.whl
+pip-log.txt
+
+# 忽略训练结果和日志
+logs/
+output/
+results/
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
+
+# 忽略大型数据文件
+*.pt
+*.pth
+*.bin
+*.h5
+*.hdf5
