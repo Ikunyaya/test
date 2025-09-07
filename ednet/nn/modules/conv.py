@@ -1,10 +1,12 @@
+# 在conv.py顶部添加：
+# 文档6 conv.py 顶部修改为：
+from .sppf import SPPF
 import math
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-
-from . import SPPF, BiFPN  # 从 __init__.py 导入
 
 
 class EDNeck(nn.Module):
@@ -27,7 +29,7 @@ __all__ = (
     "SpatialAttention",
     "CBAM",
     "BiFPN",  # 新增BiFPN
-    #"Concat",
+    "Concat",
     "RepConv",
 )
 
@@ -352,3 +354,55 @@ class EDNeck(nn.Module):
         p3, p4, p5 = self.bifpn(p3, p4, p5)  # BiFPN融合
         return p3, p4, p5
 
+
+class BiFPN(nn.Module):
+    def __init__(self, channels_list):
+        super().__init__()
+
+        # 上采样分支（高层特征向低层融合）
+        self.conv_p5_to_p4 = nn.Conv2d(channels_list[2], channels_list[1], kernel_size=1)
+        self.conv_p4_to_p3 = nn.Conv2d(channels_list[1], channels_list[0], kernel_size=1)
+
+        # 下采样分支（低层特征向高层融合）
+        self.conv_p3_to_p4 = nn.Conv2d(channels_list[0], channels_list[1], kernel_size=3, stride=2, padding=1)
+        self.conv_p4_to_p5 = nn.Conv2d(channels_list[1], channels_list[2], kernel_size=3, stride=2, padding=1)
+
+        # 可学习权重（用于加权融合）
+        self.weight_p4_top = nn.Parameter(torch.ones(2))  # P4和P5->P4的权重（自上而下）
+        self.weight_p3 = nn.Parameter(torch.ones(2))  # P3和P4->P3的权重（自上而下）
+        self.weight_p4_bottom = nn.Parameter(torch.ones(2))  # P4和P3->P4的权重（自下而上）
+        self.weight_p5 = nn.Parameter(torch.ones(2))  # P5和P4->P5的权重（自下而上）
+
+    def forward(self, p3, p4, p5):
+        # --- 自上而下路径 ---
+        # P5 -> P4
+        p5_up = F.interpolate(self.conv_p5_to_p4(p5), scale_factor=2, mode='nearest')
+        p4_top = (self.weight_p4_top[0] * p4 + self.weight_p4_top[1] * p5_up) / (self.weight_p4_top.sum() + 1e-4)
+
+        # P4 -> P3
+        p4_up = F.interpolate(self.conv_p4_to_p3(p4_top), scale_factor=2, mode='nearest')
+        p3_fused = (self.weight_p3[0] * p3 + self.weight_p3[1] * p4_up) / (self.weight_p3.sum() + 1e-4)
+
+        # --- 自下而上路径 ---
+        # P3 -> P4
+        p3_down = self.conv_p3_to_p4(p3_fused)
+        p4_fused = (self.weight_p4_bottom[0] * p4_top + self.weight_p4_bottom[1] * p3_down) / (
+                    self.weight_p4_bottom.sum() + 1e-4)
+
+        # P4 -> P5
+        p4_down = self.conv_p4_to_p5(p4_fused)
+        p5_fused = (self.weight_p5[0] * p5 + self.weight_p5[1] * p4_down) / (self.weight_p5.sum() + 1e-4)
+
+        return p3_fused, p4_fused, p5_fused
+
+class Concat(nn.Module):
+    """Concatenate a list of tensors along dimension."""
+
+    def __init__(self, dimension=1):
+        """Concatenates a list of tensors along a specified dimension."""
+        super().__init__()
+        self.d = dimension
+
+    def forward(self, x):
+        """Forward pass for the YOLOv8 mask Proto module."""
+        return torch.cat(x, self.d)

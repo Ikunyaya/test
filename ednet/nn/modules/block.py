@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from ednet.utils.torch_utils import fuse_conv_and_bn
 
-from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad
+from .conv import Conv, DWConv, GhostConv, LightConv, RepConv, autopad, __all__
 
 from mmcv.cnn.bricks import DropPath
 from mmcv.cnn import ConvModule, build_norm_layer
@@ -227,29 +227,24 @@ class C2f(nn.Module):
         """Initialize CSP bottleneck layer with two convolutions with arguments ch_in, ch_out, number, shortcut, groups,
         expansion.
         """
-        super().__init__()
+        super().__init__()  # 移除了参数
         self.c = int(c2 * e)  # hidden channels
         self.cv1 = Conv(c1, 2 * self.c, 1, 1)
         self.cv2 = Conv((2 + n) * self.c, c2, 1)  # optional act=FReLU(c2)
         self.m = nn.ModuleList(Bottleneck(self.c, self.c, shortcut, g, k=((3, 3), (3, 3)), e=1.0) for _ in range(n))
-        # ======== 添加CBAM ========
-        self.cbam = CBAM(c2)  # 在模块输出前添加CBAM
+        self.cbam = CBAM(c2)  # 将CBAM初始化移到这里
 
     def forward(self, x):
-        """Forward pass through C2f layer."""
         y = list(self.cv1(x).chunk(2, 1))
         y.extend(m(y[-1]) for m in self.m)
-        return self.cv2(torch.cat(y, 1))
-
-        # ======== 应用CBAM ========
-        return self.cbam(y)  # 返回CBAM处理后的特征
+        y = self.cv2(torch.cat(y, 1))
+        return self.cbam(y)  # 应用CBAM
 
     def forward_split(self, x):
         """Forward pass using split() instead of chunk()."""
         y = list(self.cv1(x).split((self.c, self.c), 1))
         y.extend(m(y[-1]) for m in self.m)
         return self.cv2(torch.cat(y, 1))
-
 
 class C3(nn.Module):
     """CSP Bottleneck with 3 convolutions."""
@@ -773,7 +768,7 @@ class C2fCIB(C2f):
         e (float, optional): Expansion ratio for CIB modules. Defaults to 0.5.
     """
 
-    def __init__(self, c1, c2, n=1, shortcut=False, lk=False, g=1, e=0.5):
+    def __init__(self, c1, c2, n=1, shortcut=False, lk=False, g=1, e=0.5, *args, **kwargs):
         """Initializes the module with specified parameters for channel, shortcut, local key, groups, and expansion."""
         super().__init__(c1, c2, n, shortcut, g, e)
         self.m = nn.ModuleList(CIB(self.c, self.c, shortcut, e=1.0, lk=lk) for _ in range(n))
@@ -1030,22 +1025,25 @@ class FCA(nn.Module):
         return x
 
 class C2f_FCA(C2f):
-    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5):
+    def __init__(self, c1, c2, n=1, shortcut=False, g=1, e=0.5, *args, **kwargs):
         super().__init__(c1, c2, n, shortcut, g, e)
-        self.m = nn.ModuleList(FCA(self.c, self.c) for _ in range(n))
+        self.m = nn.ModuleList(FCA(self.c, self.c, n_div=4) for _ in range(n))
 
 
 # ============== 添加CBAM模块 ==============
 class ChannelAttention(nn.Module):
-    def __init__(self, in_channels, reduction_ratio=16):
+    def __init__(self, channel, reduction=16):
         super(ChannelAttention, self).__init__()
+        # 确保中间通道数至少为1
+        self.mid_channels = max(channel // reduction, 1)
+
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.max_pool = nn.AdaptiveMaxPool2d(1)
 
         self.fc = nn.Sequential(
-            nn.Conv2d(in_channels, in_channels // reduction_ratio, 1, bias=False),
-            nn.ReLU(),
-            nn.Conv2d(in_channels // reduction_ratio, in_channels, 1, bias=False)
+            nn.Conv2d(channel, self.mid_channels, 1, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(self.mid_channels, channel, 1, bias=False)
         )
         self.sigmoid = nn.Sigmoid()
 
@@ -1071,8 +1069,9 @@ class SpatialAttention(nn.Module):
 
 
 class CBAM(nn.Module):
-    def __init__(self, c1, reduction_ratio=16, kernel_size=7):
+    def __init__(self, c1, reduction_ratio=16, kernel_size=7, *args, **kwargs):
         super(CBAM, self).__init__()
+        # 忽略额外的参数，只使用我们需要的
         self.ca = ChannelAttention(c1, reduction_ratio)
         self.sa = SpatialAttention(kernel_size)
 

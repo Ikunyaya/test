@@ -1,6 +1,4 @@
-from timm.models.nest import TransformerLayer
-from torchvision.models.vision_transformer import MLPBlock
-
+from .sppf import SPPF  # 确保SPPF在顶部导入
 from .block import (
     C1,
     C2,
@@ -11,7 +9,7 @@ from .block import (
     PSA,
     SPP,
     SPPELAN,
-    SPPF,
+    #SPPF,
     AConv,
     ADown,
     Attention,
@@ -39,6 +37,7 @@ from .block import (
 from .conv import (
     CBAM,
     ChannelAttention,
+    Concat,
     Conv,
     Conv2,
     ConvTranspose,
@@ -51,8 +50,8 @@ from .conv import (
     SpatialAttention,
 )
 from .head import Classify, Detect, Segment, v10Detect
-from .sppf import SPPF
-from .bifpn import BiFPN  # 如果你添加了BiFPN
+from .conv import BiFPN
+from .sppf import SPPF  # 确保SPPF在顶部导入
 
 __all__ = (
     "Conv",
@@ -67,10 +66,7 @@ __all__ = (
     "ChannelAttention",
     "SpatialAttention",
     "CBAM",
-    "TransformerLayer",
-    "TransformerBlock",
-    "MLPBlock",
-    "LayerNorm2d",
+    "Concat",
     "DFL",
     "HGBlock",
     "HGStem",
@@ -82,7 +78,6 @@ __all__ = (
     "C2f",
     "C2fAttn",
     "C3x",
-    "C3TR",
     "C3Ghost",
     "GhostBottleneck",
     "Bottleneck",
@@ -90,23 +85,11 @@ __all__ = (
     "Proto",
     "Detect",
     "Segment",
-    "Pose",
     "Classify",
-    "TransformerEncoderLayer",
     "RepC3",
-    "RTDETRDecoder",
-    "AIFI",
-    "DeformableTransformerDecoder",
-    "DeformableTransformerDecoderLayer",
-    "MSDeformAttn",
-    "MLP",
     "ResNetLayer",
-    "OBB",
-    "WorldDetect",
     "v10Detect",
     "ImagePoolingAttn",
-    "ContrastiveHead",
-    "BNContrastiveHead",
     "RepNCSPELAN4",
     "ADown",
     "SPPELAN",
@@ -121,5 +104,6 @@ __all__ = (
     "PSA",
     "SCDown",
     "C2f_FCA",
-    'BiFPN'
+    'BiFPN',
+    "SPPF",
 )
